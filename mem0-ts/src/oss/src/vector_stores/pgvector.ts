@@ -1,6 +1,8 @@
-import { Client } from "pg";
+import pg from "pg";
 import { VectorStore } from "./base";
 import { SearchFilters, VectorStoreConfig, VectorStoreResult } from "../types";
+
+const { Client } = pg;
 
 interface PGVectorConfig extends VectorStoreConfig {
   dbname?: string;
@@ -14,7 +16,7 @@ interface PGVectorConfig extends VectorStoreConfig {
 }
 
 export class PGVector implements VectorStore {
-  private client: Client;
+  private client: InstanceType<typeof Client>;
   private collectionName: string;
   private useDiskann: boolean;
   private useHnsw: boolean;
