@@ -19,6 +19,7 @@ import {
   getFactRetrievalMessages,
   getUpdateMemoryMessages,
   parseMessages,
+  parseJsonObjectSequence,
   removeCodeBlocks,
 } from "../prompts";
 import { DummyHistoryManager } from "../storage/DummyHistoryManager";
@@ -310,15 +311,17 @@ export class Memory {
       { type: "json_object" },
     );
 
-    const cleanResponse = removeCodeBlocks(response as string);
     let facts: string[] = [];
     try {
-      const parsed = FactRetrievalSchema.parse(JSON.parse(cleanResponse));
-      facts = parsed.facts;
+      const parsedResponses = parseJsonObjectSequence(response as string);
+      facts = parsedResponses.flatMap((obj) => {
+        const parsed = FactRetrievalSchema.safeParse(obj);
+        return parsed.success ? parsed.data.facts : [];
+      });
     } catch (e) {
       console.error(
         "Failed to parse facts from LLM response:",
-        cleanResponse,
+        removeCodeBlocks(response as string),
         e,
       );
       facts = [];
@@ -364,14 +367,15 @@ export class Memory {
       { type: "json_object" },
     );
 
-    const cleanUpdateResponse = removeCodeBlocks(updateResponse as string);
     let memoryActions: any[] = [];
     try {
-      memoryActions = JSON.parse(cleanUpdateResponse).memory || [];
+      memoryActions = parseJsonObjectSequence(updateResponse as string).flatMap(
+        (obj: any) => (Array.isArray(obj?.memory) ? obj.memory : []),
+      );
     } catch (e) {
       console.error(
         "Failed to parse memory actions from LLM response:",
-        cleanUpdateResponse,
+        removeCodeBlocks(updateResponse as string),
         e,
       );
       memoryActions = [];

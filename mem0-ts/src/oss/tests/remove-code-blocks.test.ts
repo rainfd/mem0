@@ -1,4 +1,4 @@
-import { removeCodeBlocks } from "../src/prompts";
+import { parseJsonObjectSequence, removeCodeBlocks } from "../src/prompts";
 
 describe("removeCodeBlocks", () => {
   it("extracts JSON from ```json code fence", () => {
@@ -64,5 +64,30 @@ describe("removeCodeBlocks", () => {
   it("handles CRLF line endings from LLM proxies", () => {
     const input = '```json\r\n{"facts": ["hello"]}\r\n```';
     expect(removeCodeBlocks(input)).toBe('{"facts": ["hello"]}');
+  });
+});
+
+describe("parseJsonObjectSequence", () => {
+  it("parses a normal single JSON object", () => {
+    expect(parseJsonObjectSequence('{"facts":["hello"]}')).toEqual([
+      { facts: ["hello"] },
+    ]);
+  });
+
+  it("parses multiple concatenated JSON objects", () => {
+    expect(
+      parseJsonObjectSequence('{"facts":["hello"]}{"facts":["world"]}'),
+    ).toEqual([{ facts: ["hello"] }, { facts: ["world"] }]);
+  });
+
+  it("parses concatenated objects wrapped in a code block", () => {
+    expect(
+      parseJsonObjectSequence(
+        '```json\n{"memory":[{"id":"0","text":"a","event":"ADD"}]}{"memory":[]}\n```',
+      ),
+    ).toEqual([
+      { memory: [{ id: "0", text: "a", event: "ADD" }] },
+      { memory: [] },
+    ]);
   });
 });

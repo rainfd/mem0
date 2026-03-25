@@ -283,3 +283,62 @@ export function removeCodeBlocks(text: string): string {
   // truncated blocks (where the closing ``` never arrives).
   return text.replace(/```(?:\w+)?\n?([\s\S]*?)(?:```|$)/g, "$1").trim();
 }
+
+function extractTopLevelJsonObjects(text: string): string[] {
+  const objects: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      if (depth === 0) start = i;
+      depth++;
+      continue;
+    }
+
+    if (char === "}") {
+      if (depth === 0) continue;
+      depth--;
+      if (depth === 0 && start !== -1) {
+        objects.push(text.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+
+  return objects;
+}
+
+export function parseJsonObjectSequence(text: string): unknown[] {
+  const cleaned = removeCodeBlocks(String(text || ""));
+
+  try {
+    return [JSON.parse(cleaned)];
+  } catch (error) {
+    const segments = extractTopLevelJsonObjects(cleaned);
+    if (segments.length === 0) {
+      throw error;
+    }
+    return segments.map((segment) => JSON.parse(segment));
+  }
+}
